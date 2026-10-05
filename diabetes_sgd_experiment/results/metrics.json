@@ -1,0 +1,129 @@
+{
+  "config": {
+    "seed": 42,
+    "lr_min": 0.0001,
+    "lr_max": 0.8,
+    "surrogate_runs": 36,
+    "grid_candidates": 41,
+    "selection_epochs": 300,
+    "lr_finder_steps": 140,
+    "lr_finder_factor": 0.1,
+    "compare_epochs": 500
+  },
+  "architecture": "10 -> 16 -> 16 -> 1, ReLU",
+  "optimizer": "torch.optim.SGD, full batch, no momentum, constant LR",
+  "loss": "MSE on standardized target",
+  "selection_metric": "validation MSE after fixed selection_epochs",
+  "split_sizes": {
+    "train": 309,
+    "validation": 66,
+    "test": 67
+  },
+  "surrogate": {
+    "feature": "log10(learning_rate); learning rate is the only input",
+    "target": "validation_mse",
+    "model_path": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\diabetes_sgd_experiment\\models\\gradient_boosting_lr_surrogate.joblib",
+    "quality": {
+      "train_r2": 0.9991062170366354,
+      "train_mae": 0.002250318513226404,
+      "oof_r2": 0.9705648959308423,
+      "oof_mae": 0.022280476105013478,
+      "finite_training_runs": 36
+    },
+    "learning_rate": 0.019588854516757605,
+    "predicted_validation_mse": 0.38883222182173993
+  },
+  "grid_search": {
+    "learning_rate": 0.01754998471351289
+  },
+  "lr_finder": {
+    "learning_rate": 0.019290111469259973,
+    "steepest_descent_learning_rate": 0.1929011146925997,
+    "suggestion_factor": 0.1
+  },
+  "comparisons": {
+    "absolute_difference_surrogate_vs_grid": 0.002038869803244716,
+    "ratio_surrogate_to_grid": 1.1161750187551363,
+    "absolute_difference_surrogate_vs_lr_finder": 0.00029874304749763145,
+    "ratio_surrogate_to_lr_finder": 1.0154868492063251
+  },
+  "final_runs": {
+    "surrogate": {
+      "learning_rate": 0.019588854516757605,
+      "diverged": false,
+      "losses": {
+        "train": 0.4427687789016438,
+        "validation": 0.394826905447527,
+        "test": 0.49199121560190695
+      },
+      "r2": {
+        "train": 0.5572312210983563,
+        "validation": 0.5253050621492674,
+        "test": 0.4672574766700939
+      },
+      "test_rmse_original_target": 54.99909685116441
+    },
+    "grid_search": {
+      "learning_rate": 0.01754998471351289,
+      "diverged": false,
+      "losses": {
+        "train": 0.44762891266212834,
+        "validation": 0.3917398352431736,
+        "test": 0.4963190823330625
+      },
+      "r2": {
+        "train": 0.5523710873378718,
+        "validation": 0.5290166040390871,
+        "test": 0.4625711355935147
+      },
+      "test_rmse_original_target": 55.24047066106805
+    },
+    "lr_finder": {
+      "learning_rate": 0.019290111469259973,
+      "diverged": false,
+      "losses": {
+        "train": 0.4434755171680856,
+        "validation": 0.3942921039483605,
+        "test": 0.4927758387683001
+      },
+      "r2": {
+        "train": 0.5565244828319145,
+        "validation": 0.5259480466088031,
+        "test": 0.46640786368459375
+      },
+      "test_rmse_original_target": 55.04293541233009
+    }
+  },
+  "preprocessing": {
+    "x_mean": [
+      0.001127465166257848,
+      0.00039712163551548237,
+      0.002894407355309435,
+      0.0012559476397238174,
+      0.0015569913333718843,
+      0.0010590582478272209,
+      -0.0005615941161200616,
+      0.0015229892166511985,
+      0.0019207502024109696,
+      0.003077814291115529
+    ],
+    "x_scale": [
+      0.04623185349117797,
+      0.04758869346032698,
+      0.047977410647678936,
+      0.0479261405075066,
+      0.04796267055821405,
+      0.04786382834834222,
+      0.04736623821702421,
+      0.04847818464207189,
+      0.04789428535850409,
+      0.047935033298654894
+    ],
+    "y_mean": [
+      153.90291262135923
+    ],
+    "y_scale": [
+      78.41098032914032
+    ]
+  }
+}

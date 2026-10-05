@@ -1,0 +1,34 @@
+{
+  "inputs": [
+    "L",
+    "l"
+  ],
+  "alpha_model": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd\\models\\gradient_boosting_alpha.joblib",
+  "config": {
+    "forward_groups": 1200,
+    "forward_candidates": 48,
+    "forward_starts": 16,
+    "steps": 300,
+    "forward_estimators": 400,
+    "meta_pairs": 10000,
+    "meta_estimators": 600,
+    "n_alpha": 128,
+    "refine_alpha": 64,
+    "inverse_batch_size": 512,
+    "seed": 42
+  },
+  "metrics": {
+    "inverse_alpha": {
+      "r2": 0.9940332342853184,
+      "corr": 0.9970241905132955,
+      "mae": 0.0004967231766538707,
+      "rmse": 0.0028056048347418145
+    },
+    "final_alpha": {
+      "r2": 0.9961731574616288,
+      "corr": 0.9980922877281896,
+      "mae": 0.0005575838789727679,
+      "rmse": 0.002207760486477428
+    }
+  }
+}

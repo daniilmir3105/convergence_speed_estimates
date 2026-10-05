@@ -1,0 +1,49 @@
+{
+  "inputs": [
+    "L",
+    "l"
+  ],
+  "alpha_model": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb\\models\\gradient_boosting_alpha.joblib",
+  "beta_model": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb\\models\\gradient_boosting_beta.joblib",
+  "config": {
+    "forward_groups": 1200,
+    "forward_candidates": 64,
+    "forward_starts": 16,
+    "steps": 300,
+    "forward_estimators": 400,
+    "meta_pairs": 5000,
+    "meta_estimators": 600,
+    "n_alpha": 32,
+    "n_beta": 32,
+    "refine_alpha": 16,
+    "refine_beta": 16,
+    "inverse_batch_size": 256,
+    "seed": 42
+  },
+  "metrics": {
+    "inverse_alpha": {
+      "r2": 0.9839872582479106,
+      "corr": 0.99740730581943,
+      "mae": 0.0011322472327319933,
+      "rmse": 0.005691574438178848
+    },
+    "inverse_beta": {
+      "r2": 0.8974970610147307,
+      "corr": 0.9910603395839221,
+      "mae": 0.03284688276686961,
+      "rmse": 0.03645410218701723
+    },
+    "final_alpha": {
+      "r2": 0.9873432815509364,
+      "corr": 0.9968483660563483,
+      "mae": 0.0011287490804622918,
+      "rmse": 0.004882643377670936
+    },
+    "final_beta": {
+      "r2": 0.8967613272956283,
+      "corr": 0.9937312749845559,
+      "mae": 0.03326904281151712,
+      "rmse": 0.03601766993088033
+    }
+  }
+}
