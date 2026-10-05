@@ -9,7 +9,7 @@
 Из корня проекта:
 
 ```powershell
-.\venv\Scripts\python.exe hb_alternative\pipeline.py
+.\venv\Scripts\python.exe hb\pipeline.py
 ```
 
 Конвейер автоматически:
@@ -23,13 +23,13 @@
 ## Быстрый эксперимент
 
 ```powershell
-.\venv\Scripts\python.exe hb_alternative\pipeline.py `
+.\venv\Scripts\python.exe hb\pipeline.py `
   --forward-groups 300 `
   --forward-candidates 48 `
   --forward-starts 8 `
-  --forward-iterations 500 `
+  --forward-estimators 200 `
   --meta-pairs 1000 `
-  --meta-iterations 500 `
+  --meta-estimators 300 `
   --n-alpha 24 `
   --n-beta 24 `
   --refine-alpha 12 `
@@ -48,7 +48,7 @@
 ## Использование готовых моделей
 
 ```powershell
-.\venv\Scripts\python.exe hb_alternative\predict.py 40 10
+.\venv\Scripts\python.exe hb\predict.py 40 10
 ```
 
 Команда выводит рекомендуемые `alpha` и `beta`. Если аргументы переданы в

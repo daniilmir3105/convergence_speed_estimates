@@ -10,7 +10,7 @@
 Из корня проекта:
 
 ```powershell
-.\venv\Scripts\python.exe gd_alter\pipeline.py
+.\venv\Scripts\python.exe gd\pipeline.py
 ```
 
 Конвейер создаст датасеты и сохранит:
@@ -24,7 +24,7 @@
 ## Использование готовой модели
 
 ```powershell
-.\venv\Scripts\python.exe gd_alter\predict.py 40 10
+.\venv\Scripts\python.exe gd\predict.py 40 10
 ```
 
 Скрипт выводит ML-прогноз, теоретический шаг `2/(L+l)` и абсолютную ошибку.
@@ -32,7 +32,7 @@
 Программный вызов:
 
 ```python
-from gd_alter.predict import predict, gd_theory
+from gd.predict import predict, gd_theory
 
 alpha = predict(L=40, l=10)
 alpha_theory = gd_theory(L=40, l=10)
