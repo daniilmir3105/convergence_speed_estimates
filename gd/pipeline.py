@@ -20,6 +20,7 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
+from sklearn.compose import TransformedTargetRegressor
 
 
 matplotlib.use("Agg")
@@ -33,6 +34,19 @@ RESULTS_DIR = BASE_DIR / "results"
 
 FORWARD_FEATURES = ["kappa", "log_kappa", "alpha_L", "stability_ratio"]
 META_FEATURES = ["L", "l"]
+KAPPA_MIN = 1.1
+KAPPA_MAX = 20_000.0
+STABILITY_SAFETY = 0.99999
+
+
+def stratified_log_uniform(size, low, high, rng):
+    """Cover every logarithmic part of a wide positive interval."""
+    if not 0 < low < high:
+        raise ValueError("Expected 0 < low < high")
+    edges = np.linspace(np.log(low), np.log(high), size + 1)
+    values = np.exp(rng.uniform(edges[:-1], edges[1:]))
+    rng.shuffle(values)
+    return values
 
 
 def theory_from_kappa(kappa):
@@ -47,57 +61,15 @@ def theory_from_L_l(L, l):
     return 2.0 / (L + l)
 
 
-def make_start_points(n_starts, seed):
-    rng = np.random.default_rng(seed)
-    x0 = rng.normal(size=(n_starts, 2))
-    tiny = np.linalg.norm(x0, axis=1) < 1e-8
-    x0[tiny, 0] = 1.0
-    return x0.astype(np.float64)
-
-
-def terminal_rate(kappa, alpha_L, x0, steps=300, chunk_size=8192):
-    """Exact mean log10(f_K/f_0)/K without early stopping.
-
-    For a normalized quadratic with eigenvalues (kappa, 1), GD has independent
-    factors 1-alpha_L and 1-alpha_L/kappa. A logarithmic closed form avoids
-    both an explicit 300-step loop and premature floating-point underflow.
-    """
+def asymptotic_rate(kappa, alpha_L):
+    """Return 2*log10(rho), the asymptotic per-step function-value rate."""
     kappa = np.asarray(kappa, dtype=np.float64)
     alpha_L = np.asarray(alpha_L, dtype=np.float64)
-    output = np.empty(len(kappa), dtype=np.float64)
-    log_floor = -300.0 * np.log(10.0)
-
-    x1_sq = x0[:, 0] ** 2
-    x2_sq = x0[:, 1] ** 2
-
-    for start in range(0, len(kappa), chunk_size):
-        end = min(start + chunk_size, len(kappa))
-        current_kappa = kappa[start:end]
-        current_alpha_L = alpha_L[start:end]
-
-        factor_L = np.abs(1.0 - current_alpha_L)
-        factor_l = np.abs(1.0 - current_alpha_L / current_kappa)
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            log_term_L = (
-                np.log(current_kappa[:, None] * x1_sq[None, :])
-                + 2.0 * steps * np.log(factor_L[:, None])
-            )
-            log_term_l = (
-                np.log(x2_sq[None, :])
-                + 2.0 * steps * np.log(factor_l[:, None])
-            )
-            log_fK_without_half = np.logaddexp(log_term_L, log_term_l)
-            log_f0_without_half = np.log(
-                current_kappa[:, None] * x1_sq[None, :]
-                + x2_sq[None, :]
-            )
-            log_ratio = log_fK_without_half - log_f0_without_half
-
-        log_ratio = np.maximum(log_ratio, log_floor)
-        output[start:end] = np.mean(log_ratio / np.log(10.0), axis=1) / steps
-
-    return np.nan_to_num(output, nan=1.0, posinf=1.0, neginf=-1.0)
+    rho = np.maximum(
+        np.abs(1.0 - alpha_L),
+        np.abs(1.0 - alpha_L / kappa),
+    )
+    return 2.0 * np.log10(np.maximum(rho, 1e-15))
 
 
 def forward_feature_matrix(kappa, alpha_L):
@@ -114,18 +86,20 @@ def forward_feature_matrix(kappa, alpha_L):
 
 
 def generate_forward_dataset(
-    n_groups=1200,
-    candidates_per_group=48,
-    n_starts=16,
-    steps=300,
-    safety=0.95,
+    n_groups=2000,
+    candidates_per_group=64,
+    kappa_min=KAPPA_MIN,
+    kappa_max=KAPPA_MAX,
+    safety=STABILITY_SAFETY,
     seed=42,
 ):
     if candidates_per_group < 12:
         raise ValueError("candidates_per_group must be at least 12")
 
     rng = np.random.default_rng(seed)
-    group_kappa = rng.uniform(1.1, 20.0, size=n_groups)
+    group_kappa = stratified_log_uniform(
+        n_groups, kappa_min, kappa_max, rng
+    )
     kappa = np.repeat(group_kappa, candidates_per_group)
     group_id = np.repeat(np.arange(n_groups), candidates_per_group)
     alpha_theory_group = theory_from_kappa(group_kappa)
@@ -158,9 +132,9 @@ def generate_forward_dataset(
             sample_weight[index] = 8.0
             sample_kind[index] = "anchor"
 
-    x0 = make_start_points(n_starts, seed + 1)
     started = time.perf_counter()
-    target = terminal_rate(kappa, alpha_L, x0, steps=steps)
+    target = asymptotic_rate(kappa, alpha_L)
+    scaled_target = kappa * target
     elapsed = time.perf_counter() - started
     print(
         f"Generated {n:,} forward rows in {elapsed:.2f}s "
@@ -174,6 +148,7 @@ def generate_forward_dataset(
             "alpha_L": alpha_L,
             "stability_ratio": alpha_L / 2.0,
             "target_rate": target,
+            "scaled_target_rate": scaled_target,
             "sample_weight": sample_weight,
             "sample_kind": sample_kind,
         }
@@ -192,7 +167,7 @@ def train_forward_model(frame, seed=42, n_estimators=400):
     validation_mask = frame["group_id"].isin(validation_groups).to_numpy()
 
     X = forward_feature_matrix(frame["kappa"], frame["alpha_L"])
-    y = frame["target_rate"].to_numpy()
+    y = frame["scaled_target_rate"].to_numpy()
     weights = frame["sample_weight"].to_numpy()
 
     model = GradientBoostingRegressor(
@@ -211,14 +186,26 @@ def train_forward_model(frame, seed=42, n_estimators=400):
     )
 
     prediction = model.predict(X[validation_mask])
-    print_metrics("Forward validation", y[validation_mask], prediction)
+    scaled_metrics = print_metrics(
+        "Forward validation (scaled)", y[validation_mask], prediction
+    )
+    raw_prediction = prediction / frame.loc[validation_mask, "kappa"].to_numpy()
+    raw_metrics = print_metrics(
+        "Forward validation (raw rate)",
+        frame.loc[validation_mask, "target_rate"],
+        raw_prediction,
+    )
     local_mask = validation_mask & (frame["sample_kind"] != "global").to_numpy()
-    print_metrics(
-        "Forward validation near optimum",
+    local_metrics = print_metrics(
+        "Forward validation near optimum (scaled)",
         y[local_mask],
         model.predict(X[local_mask]),
     )
-    return model
+    return model, {
+        "scaled_validation": scaled_metrics,
+        "raw_rate_validation": raw_metrics,
+        "scaled_near_optimum_validation": local_metrics,
+    }
 
 
 def predict_forward_scores(model, kappa, alpha_L):
@@ -231,10 +218,10 @@ def predict_forward_scores(model, kappa, alpha_L):
 def inverse_search(
     model,
     kappa,
-    n_alpha=128,
-    refine_n_alpha=64,
+    n_alpha=192,
+    refine_n_alpha=96,
     batch_size=512,
-    safety=0.95,
+    safety=STABILITY_SAFETY,
 ):
     kappa = np.asarray(kappa, dtype=np.float64)
     alpha_result = np.empty(len(kappa), dtype=np.float64)
@@ -280,10 +267,15 @@ def inverse_search(
     return alpha_result, score_result
 
 
-def sample_meta_pairs(n_pairs, seed):
+def sample_meta_pairs(
+    n_pairs,
+    seed,
+    kappa_min=KAPPA_MIN,
+    kappa_max=KAPPA_MAX,
+):
     rng = np.random.default_rng(seed)
     l = rng.uniform(1.0, 50.0, size=n_pairs)
-    kappa = rng.uniform(1.1, 20.0, size=n_pairs)
+    kappa = stratified_log_uniform(n_pairs, kappa_min, kappa_max, rng)
     L = l * kappa
     return pd.DataFrame(
         {
@@ -296,7 +288,7 @@ def sample_meta_pairs(n_pairs, seed):
 
 
 def train_meta_model(X, y, seed=42, n_estimators=600):
-    model = GradientBoostingRegressor(
+    base_model = GradientBoostingRegressor(
         loss="squared_error",
         n_estimators=n_estimators,
         learning_rate=0.035,
@@ -305,7 +297,13 @@ def train_meta_model(X, y, seed=42, n_estimators=600):
         subsample=0.9,
         random_state=seed,
     )
-    model.fit(X, y)
+    model = TransformedTargetRegressor(
+        regressor=base_model,
+        func=np.log,
+        inverse_func=np.exp,
+        check_inverse=False,
+    )
+    model.fit(X, np.maximum(np.asarray(y), 1e-15))
     return model
 
 
@@ -325,6 +323,32 @@ def print_metrics(name, y_true, y_pred):
     return metrics
 
 
+def metrics_by_kappa(frame, truth_column, prediction_column):
+    """Report quality separately on each order of magnitude of kappa."""
+    edges = [KAPPA_MIN, 10.0, 100.0, 1000.0, 10_000.0, KAPPA_MAX]
+    result = {}
+    for index, (lower, upper) in enumerate(zip(edges[:-1], edges[1:])):
+        inclusive = index == len(edges) - 2
+        mask = (frame["kappa"] >= lower) & (
+            frame["kappa"] <= upper if inclusive else frame["kappa"] < upper
+        )
+        current = frame.loc[mask]
+        if len(current) < 2:
+            continue
+        y_true = current[truth_column].to_numpy()
+        y_pred = current[prediction_column].to_numpy()
+        key = f"[{lower:g}, {upper:g}{']' if inclusive else ')'}"
+        result[key] = {
+            "count": int(len(current)),
+            "r2": float(r2_score(y_true, y_pred)),
+            "mae": float(mean_absolute_error(y_true, y_pred)),
+            "mean_relative_error": float(
+                np.mean(np.abs(y_pred - y_true) / np.maximum(np.abs(y_true), 1e-15))
+            ),
+        }
+    return result
+
+
 def save_plot(frame, path):
     theory = frame["alpha_theory"].to_numpy()
     prediction = frame["alpha_pred"].to_numpy()
@@ -336,6 +360,8 @@ def save_plot(frame, path):
     plt.plot([lower, upper], [lower, upper], "r--")
     plt.xlabel("alpha theory")
     plt.ylabel("alpha model")
+    plt.xscale("log")
+    plt.yscale("log")
     plt.title(f"Gradient Descent alpha: R2={r2_score(theory, prediction):.4f}")
     plt.grid(True)
     plt.tight_layout()
@@ -345,15 +371,16 @@ def save_plot(frame, path):
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Alternative GD inverse pipeline")
-    parser.add_argument("--forward-groups", type=int, default=1200)
-    parser.add_argument("--forward-candidates", type=int, default=48)
-    parser.add_argument("--forward-starts", type=int, default=16)
-    parser.add_argument("--steps", type=int, default=300)
+    parser.add_argument("--kappa-min", type=float, default=KAPPA_MIN)
+    parser.add_argument("--kappa-max", type=float, default=KAPPA_MAX)
+    parser.add_argument("--stability-safety", type=float, default=STABILITY_SAFETY)
+    parser.add_argument("--forward-groups", type=int, default=2000)
+    parser.add_argument("--forward-candidates", type=int, default=64)
     parser.add_argument("--forward-estimators", type=int, default=400)
-    parser.add_argument("--meta-pairs", type=int, default=10000)
+    parser.add_argument("--meta-pairs", type=int, default=20000)
     parser.add_argument("--meta-estimators", type=int, default=600)
-    parser.add_argument("--n-alpha", type=int, default=128)
-    parser.add_argument("--refine-alpha", type=int, default=64)
+    parser.add_argument("--n-alpha", type=int, default=192)
+    parser.add_argument("--refine-alpha", type=int, default=96)
     parser.add_argument("--inverse-batch-size", type=int, default=512)
     parser.add_argument("--seed", type=int, default=42)
     return parser
@@ -361,6 +388,16 @@ def build_parser():
 
 def main(args=None):
     args = build_parser().parse_args(args)
+    if not 0 < args.kappa_min < args.kappa_max:
+        raise ValueError("Expected 0 < kappa-min < kappa-max")
+    if not 0 < args.stability_safety < 1:
+        raise ValueError("stability-safety must be in (0, 1)")
+    required_safety = args.kappa_max / (args.kappa_max + 1.0)
+    if args.stability_safety <= required_safety:
+        raise ValueError(
+            "stability-safety must exceed kappa-max/(kappa-max+1) "
+            "so the theoretical optimum remains in the search domain"
+        )
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -369,14 +406,15 @@ def main(args=None):
     forward_frame = generate_forward_dataset(
         n_groups=args.forward_groups,
         candidates_per_group=args.forward_candidates,
-        n_starts=args.forward_starts,
-        steps=args.steps,
+        kappa_min=args.kappa_min,
+        kappa_max=args.kappa_max,
+        safety=args.stability_safety,
         seed=args.seed,
     )
     forward_frame.to_pickle(DATA_DIR / "forward_dataset.pkl")
 
     print("\n2/4 Training GD terminal-rate surrogate")
-    forward_model = train_forward_model(
+    forward_model, forward_metrics = train_forward_model(
         forward_frame,
         seed=args.seed,
         n_estimators=args.forward_estimators,
@@ -384,7 +422,12 @@ def main(args=None):
     joblib.dump(forward_model, MODELS_DIR / "gradient_boosting_terminal_rate.joblib")
 
     print("\n3/4 Solving the inverse problem through the surrogate")
-    all_pairs = sample_meta_pairs(args.meta_pairs, args.seed + 10)
+    all_pairs = sample_meta_pairs(
+        args.meta_pairs,
+        args.seed + 10,
+        kappa_min=args.kappa_min,
+        kappa_max=args.kappa_max,
+    )
     train_index, test_index = train_test_split(
         np.arange(len(all_pairs)),
         test_size=0.2,
@@ -400,6 +443,7 @@ def main(args=None):
         n_alpha=args.n_alpha,
         refine_n_alpha=args.refine_alpha,
         batch_size=args.inverse_batch_size,
+        safety=args.stability_safety,
     )
     train_frame["alpha_found"] = alpha_L_found / train_frame["L"].to_numpy()
     train_frame["inverse_score"] = inverse_score
@@ -436,8 +480,17 @@ def main(args=None):
         "alpha_model": str(model_path),
         "config": vars(args),
         "metrics": {
+            "forward": forward_metrics,
             "inverse_alpha": inverse_metrics,
             "final_alpha": final_metrics,
+        },
+        "metrics_by_kappa": {
+            "inverse_alpha": metrics_by_kappa(
+                train_frame, "alpha_theory", "alpha_found"
+            ),
+            "final_alpha": metrics_by_kappa(
+                test_frame, "alpha_theory", "alpha_pred"
+            ),
         },
     }
     (RESULTS_DIR / "metrics.json").write_text(
@@ -454,4 +507,3 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
-
