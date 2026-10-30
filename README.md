@@ -16,6 +16,7 @@
 | [`gd`](gd/) | Обратная задача для Gradient Descent | Модель `(L, l) -> alpha` |
 | [`hb`](hb/) | Обратная задача для Heavy Ball | Две модели `(L, l) -> alpha` и `(L, l) -> beta` |
 | [`diabetes_sgd_experiment`](diabetes_sgd_experiment/) | Эмпирический подбор learning rate для MLP на Diabetes | Модель `learning rate -> validation MSE` и сравнение с Grid Search/LR Finder |
+| [`boston_mlp_experiment`](boston_mlp_experiment/) | Подбор learning rate Adam для MLP на Boston Housing | Аналогичное сравнение surrogate, Grid Search и LR Finder после обработки пропусков и выбросов |
 
 Здесь `L` — максимальное, а `l` — минимальное собственное значение гессиана;
 `alpha` — шаг оптимизатора; `beta` — коэффициент momentum.
@@ -220,6 +221,23 @@ Search и Learning Rate Finder. Test-набор используется тол�
   --compare-epochs 200
 ```
 
+### Практический эксперимент Boston Housing
+
+```powershell
+.\train_boston.cmd
+```
+
+Эксперимент использует 506 наблюдений Boston Housing и фиксированную sklearn MLP
+`13 -> 32 -> 32 -> 1`: два скрытых слоя по 32 нейрона, ReLU, MSE и Adam с
+постоянным базовым learning rate. Данные делятся на train/validation/test до
+предобработки. Медианная импутация, winsorization по квантилям 1%/99% и
+стандартизация обучаются только на train. Исходный датасет не содержит пропусков,
+но пайплайн корректно обработает их при повторном использовании.
+
+Локальная копия OpenML уже сохранена, поэтому обычный запуск не требует сети.
+Быстрая проверка доступна командой `.\train_boston.cmd -Quick`; она
+перезаписывает полные результаты сокращёнными.
+
 ## Текущие результаты
 
 Результаты ниже получены с `seed=42` и стандартными параметрами скриптов.
@@ -255,9 +273,23 @@ train R² = 0.9991
 а графики — в
 [`diabetes_sgd_experiment/results/comparison.png`](diabetes_sgd_experiment/results/comparison.png).
 
+### Boston Housing
+
+Качество surrogate-модели: train `R²=0.9997`, 5-fold OOF `R²=0.9701`.
+
+| Метод | Learning rate | Validation R² | Test R² | Test RMSE в исходной шкале |
+|---|---:|---:|---:|---:|
+| Gradient Boosting surrogate | 0.008271 | 0.9154 | 0.7744 | 4.2341 |
+| Grid Search | 0.000631 | 0.9017 | 0.7830 | 4.1528 |
+| Learning Rate Finder | 0.001440 | 0.8987 | 0.8009 | 3.9782 |
+
+Подробные метрики и графики сохранены в
+[`boston_mlp_experiment/results/metrics.json`](boston_mlp_experiment/results/metrics.json)
+и [`boston_mlp_experiment/results/comparison.png`](boston_mlp_experiment/results/comparison.png).
+
 Время полного запуска на текущей CPU-машине составляет примерно 2 минуты для
-`gd`, 3 минуты для `hb` и 40 секунд для Diabetes. На другом оборудовании время
-может заметно отличаться.
+`gd`, 3 минуты для `hb`, 40 секунд для Diabetes и 40 секунд для Boston. На другом
+оборудовании время может заметно отличаться.
 
 ## Структура результатов
 
@@ -265,6 +297,7 @@ train R² = 0.9991
 train_gd.ps1 / train_gd.cmd             # полное или быстрое обучение GD
 train_hb.ps1 / train_hb.cmd             # полное или быстрое обучение HB
 train_all.ps1 / train_all.cmd            # последовательный запуск обоих
+train_boston.ps1 / train_boston.cmd      # полный или быстрый Boston-эксперимент
 
 gd/
 ├── pipeline.py                         # обучение всего GD-пайплайна
@@ -301,6 +334,12 @@ diabetes_sgd_experiment/
     ├── learning_curves.csv
     ├── metrics.json
     └── comparison.png
+
+boston_mlp_experiment/
+├── experiment.py                       # полный sklearn MLP/Adam-пайплайн
+├── data/boston_openml_531.csv          # локальные 506 наблюдений
+├── models/                             # preprocessing, surrogate и три MLP
+└── results/                            # выборки поиска, метрики и графики
 ```
 
 Файлы `.joblib` содержат sklearn-модели, а `.pt` — веса итоговых PyTorch MLP.

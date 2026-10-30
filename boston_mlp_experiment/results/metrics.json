@@ -1,0 +1,144 @@
+{
+  "config": {
+    "seed": 42,
+    "lr_min": 1e-05,
+    "lr_max": 0.1,
+    "surrogate_runs": 36,
+    "grid_candidates": 41,
+    "selection_epochs": 300,
+    "lr_finder_steps": 140,
+    "lr_finder_factor": 1.0,
+    "compare_epochs": 500,
+    "outlier_lower_quantile": 0.01,
+    "outlier_upper_quantile": 0.99
+  },
+  "dataset": {
+    "source": "local CSV cache created from OpenML data_id=531",
+    "rows": 506,
+    "features": 13,
+    "feature_names": [
+      "CRIM",
+      "ZN",
+      "INDUS",
+      "CHAS",
+      "NOX",
+      "RM",
+      "AGE",
+      "DIS",
+      "RAD",
+      "TAX",
+      "PTRATIO",
+      "B",
+      "LSTAT"
+    ],
+    "raw_missing_feature_values": 0,
+    "preprocessing_report": {
+      "train": {
+        "rows": 354,
+        "missing_feature_values_imputed": 0,
+        "feature_values_clipped_as_outliers": 61
+      },
+      "validation": {
+        "rows": 76,
+        "missing_feature_values_imputed": 0,
+        "feature_values_clipped_as_outliers": 15
+      },
+      "test": {
+        "rows": 76,
+        "missing_feature_values_imputed": 0,
+        "feature_values_clipped_as_outliers": 17
+      }
+    }
+  },
+  "architecture": "13 -> 32 -> 32 -> 1, ReLU",
+  "estimator": "sklearn.neural_network.MLPRegressor",
+  "optimizer": "Adam, constant base learning rate, full-batch, no shuffling",
+  "loss": "MSE on standardized target",
+  "selection_metric": "validation MSE after fixed selection_epochs",
+  "split_sizes": {
+    "train": 354,
+    "validation": 76,
+    "test": 76
+  },
+  "preprocessing": {
+    "missing_values": "median imputation fitted on train",
+    "outliers": "feature-wise winsorization fitted on train at [0.01, 0.99]",
+    "scaling": "StandardScaler fitted on train for X and y",
+    "artifact": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\boston_mlp_experiment\\models\\preprocessing.joblib"
+  },
+  "surrogate": {
+    "feature": "log10(learning_rate); learning rate is the only input",
+    "target": "validation_mse",
+    "model_path": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\boston_mlp_experiment\\models\\gradient_boosting_lr_surrogate.joblib",
+    "quality": {
+      "train_r2": 0.9997279809122113,
+      "train_mae": 0.00281330166942383,
+      "oof_r2": 0.9700922010555812,
+      "oof_mae": 0.02914993582883139,
+      "finite_training_runs": 36
+    },
+    "learning_rate": 0.008270768733544612,
+    "predicted_validation_mse": 0.07081991801023127
+  },
+  "grid_search": {
+    "learning_rate": 0.000630957344480193
+  },
+  "lr_finder": {
+    "learning_rate": 0.0014397045636221004,
+    "steepest_descent_learning_rate": 0.0014397045636221004,
+    "suggestion_factor": 1.0
+  },
+  "comparisons": {
+    "absolute_difference_surrogate_vs_grid": 0.0076398113890644185,
+    "ratio_surrogate_to_grid": 13.108285062215085,
+    "absolute_difference_surrogate_vs_lr_finder": 0.006831064169922511,
+    "ratio_surrogate_to_lr_finder": 5.744768018749962
+  },
+  "final_runs": {
+    "surrogate": {
+      "learning_rate": 0.008270768733544612,
+      "diverged": false,
+      "losses": {
+        "train": 0.006958299589617423,
+        "validation": 0.06680191443355417,
+        "test": 0.2039631522268835
+      },
+      "r2": {
+        "train": 0.9930417004103825,
+        "validation": 0.9153573766531999,
+        "test": 0.7744363749382698
+      },
+      "test_rmse_original_target": 4.234105951556889
+    },
+    "grid_search": {
+      "learning_rate": 0.000630957344480193,
+      "diverged": false,
+      "losses": {
+        "train": 0.038260317990959414,
+        "validation": 0.07758230915073921,
+        "test": 0.19620095359541861
+      },
+      "r2": {
+        "train": 0.9617396820090406,
+        "validation": 0.9016978745668617,
+        "test": 0.7830206198994125
+      },
+      "test_rmse_original_target": 4.152756059376036
+    },
+    "lr_finder": {
+      "learning_rate": 0.0014397045636221004,
+      "diverged": false,
+      "losses": {
+        "train": 0.017782498657923033,
+        "validation": 0.07993207596166849,
+        "test": 0.1800537491719083
+      },
+      "r2": {
+        "train": 0.982217501342077,
+        "validation": 0.8987205582905725,
+        "test": 0.800877874627111
+      },
+      "test_rmse_original_target": 3.978203069241842
+    }
+  }
+}
