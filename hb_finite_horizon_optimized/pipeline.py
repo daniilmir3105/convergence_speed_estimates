@@ -23,7 +23,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 
 
@@ -289,24 +289,10 @@ def generate_forward_dataset(
     )
 
 
-def metric_dict(y_true, y_pred):
-    y_true = np.asarray(y_true, dtype=np.float64)
-    y_pred = np.asarray(y_pred, dtype=np.float64)
-    return {
-        "r2": float(r2_score(y_true, y_pred)),
-        "corr": float(np.corrcoef(y_true, y_pred)[0, 1]),
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-    }
-
-
-def print_metrics(name, y_true, y_pred):
-    metrics = metric_dict(y_true, y_pred)
-    print(
-        f"{name}: R2={metrics['r2']:.4f} | corr={metrics['corr']:.4f} | "
-        f"MAE={metrics['mae']:.8f} | RMSE={metrics['rmse']:.8f}"
-    )
-    return metrics
+def print_r2(name, y_true, y_pred):
+    score = float(r2_score(y_true, y_pred))
+    print(f"{name}: R2={score:.6f}")
+    return score
 
 
 def train_forward_model(frame, seed, max_iter):
@@ -334,22 +320,27 @@ def train_forward_model(frame, seed, max_iter):
 
     prediction = model.predict(X[validation_mask])
     raw_prediction = prediction / np.sqrt(frame.loc[validation_mask, "kappa"])
-    local_validation = validation_mask & (frame["sample_kind"] != "global").to_numpy()
-    local_prediction = model.predict(X[local_validation])
+    # "Near optimum" is defined by the true target, not by Polyak's formula:
+    # retain the best 20% candidates inside every validation kappa.
+    target_rank = frame.groupby("group_id")["target_rate"].rank(
+        method="first", pct=True
+    )
+    near_optimum_validation = validation_mask & (target_rank.to_numpy() <= 0.20)
+    near_optimum_prediction = model.predict(X[near_optimum_validation])
 
     return model, {
-        "scaled_validation": print_metrics(
+        "validation_scaled_r2": print_r2(
             "Forward validation (scaled)", y[validation_mask], prediction
         ),
-        "raw_validation": print_metrics(
+        "near_optimum_scaled_r2": print_r2(
+            "Forward validation near optimum (scaled)",
+            frame.loc[near_optimum_validation, "scaled_target_rate"],
+            near_optimum_prediction,
+        ),
+        "validation_raw_J300_r2": print_r2(
             "Forward validation (raw J_K)",
             frame.loc[validation_mask, "target_rate"],
             raw_prediction,
-        ),
-        "scaled_near_optimum_validation": print_metrics(
-            "Forward validation near optimum",
-            frame.loc[local_validation, "scaled_target_rate"],
-            local_prediction,
         ),
     }
 
@@ -653,35 +644,6 @@ def train_direct_model(X, y, seed, n_estimators):
     return model
 
 
-def metrics_by_kappa(frame, truth, prediction, kappa_max):
-    edges = [KAPPA_MIN, 10.0, 100.0, 1000.0, 10_000.0, kappa_max]
-    result = {}
-    for index, (lower, upper) in enumerate(zip(edges[:-1], edges[1:])):
-        final = index == len(edges) - 2
-        mask = (frame["kappa"] >= lower) & (
-            frame["kappa"] <= upper if final else frame["kappa"] < upper
-        )
-        current = frame.loc[mask]
-        if len(current) < 2:
-            continue
-        result[f"[{lower:g}, {upper:g}{']' if final else ')'}"] = {
-            "count": int(len(current)),
-            **metric_dict(current[truth], current[prediction]),
-        }
-    return result
-
-
-def performance_summary(model_score, reference_score):
-    model_score = np.asarray(model_score)
-    reference_score = np.asarray(reference_score)
-    return {
-        "model_mean_JK": float(np.mean(model_score)),
-        "reference_mean_JK": float(np.mean(reference_score)),
-        "model_better_fraction": float(np.mean(model_score < reference_score)),
-        "mean_regret": float(np.mean(model_score - reference_score)),
-    }
-
-
 def save_plots(oracle_frame, test_frame):
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
     axes[0].scatter(
@@ -827,16 +789,6 @@ def main(argv=None):
         }
     )
     oracle_frame.to_csv(DATA_DIR / "oracle_diagnostic.csv", index=False)
-    oracle_metrics = {
-        "alpha_vs_polyak": print_metrics(
-            "Oracle alpha vs Polyak", theory_alpha, oracle_alpha
-        ),
-        "beta_vs_polyak": print_metrics(
-            "Oracle beta vs Polyak", theory_beta, oracle_beta
-        ),
-        "performance_vs_polyak": performance_summary(oracle_score, theory_score),
-    }
-
     print("\n2/6 Generating exact finite-horizon forward dataset")
     forward_frame = generate_forward_dataset(
         starts,
@@ -934,40 +886,16 @@ def main(argv=None):
     )
     test_frame.to_csv(DATA_DIR / "direct_model_test.csv", index=False)
 
-    final_metrics = {
-        "alpha_vs_finite_label": print_metrics(
-            "Direct alpha vs finite label",
-            test_frame["alpha_found"],
-            test_frame["alpha_pred"],
-        ),
-        "beta_vs_finite_label": print_metrics(
-            "Direct beta vs finite label",
-            test_frame["beta_found"],
-            test_frame["beta_pred"],
-        ),
-        "q_vs_finite_label": print_metrics(
-            "Direct q vs finite label", test_frame["q_found"], test_frame["q_pred"]
-        ),
-        "alpha_vs_polyak": print_metrics(
-            "Direct alpha vs Polyak",
-            test_frame["alpha_theory"],
-            test_frame["alpha_pred"],
-        ),
-        "beta_vs_polyak": print_metrics(
-            "Direct beta vs Polyak",
-            test_frame["beta_theory"],
-            test_frame["beta_pred"],
-        ),
-        "performance_vs_finite_label": performance_summary(
-            test_frame["J_pred"], test_frame["J_found"]
-        ),
-        "performance_vs_polyak": performance_summary(
-            test_frame["J_pred"], test_frame["J_theory"]
-        ),
-        "unstable_fraction": float(
-            np.mean(test_frame["q_pred"].to_numpy() >= 1.0)
-        ),
-    }
+    final_alpha_vs_polyak_r2 = print_r2(
+        "Direct alpha vs Polyak",
+        test_frame["alpha_theory"],
+        test_frame["alpha_pred"],
+    )
+    final_beta_vs_polyak_r2 = print_r2(
+        "Direct beta vs Polyak",
+        test_frame["beta_theory"],
+        test_frame["beta_pred"],
+    )
 
     save_plots(oracle_frame, test_frame)
     manifest = {
@@ -986,34 +914,11 @@ def main(argv=None):
         },
         "config": vars(args),
         "metrics": {
-            "oracle": oracle_metrics,
-            "forward": forward_metrics,
-            "inverse_labels_vs_polyak": {
-                "alpha": metric_dict(
-                    all_pairs["alpha_theory"], all_pairs["alpha_found"]
-                ),
-                "beta": metric_dict(
-                    all_pairs["beta_theory"], all_pairs["beta_found"]
-                ),
-                "performance": performance_summary(
-                    all_pairs["J_found"], all_pairs["J_theory"]
-                ),
+            "forward_model": forward_metrics,
+            "final_models_vs_polyak": {
+                "alpha_r2": final_alpha_vs_polyak_r2,
+                "beta_r2": final_beta_vs_polyak_r2,
             },
-            "final": final_metrics,
-        },
-        "metrics_by_kappa": {
-            "alpha_vs_finite_label": metrics_by_kappa(
-                test_frame, "alpha_found", "alpha_pred", args.kappa_max
-            ),
-            "beta_vs_finite_label": metrics_by_kappa(
-                test_frame, "beta_found", "beta_pred", args.kappa_max
-            ),
-            "alpha_vs_polyak": metrics_by_kappa(
-                test_frame, "alpha_theory", "alpha_pred", args.kappa_max
-            ),
-            "beta_vs_polyak": metrics_by_kappa(
-                test_frame, "beta_theory", "beta_pred", args.kappa_max
-            ),
         },
     }
     (RESULTS_DIR / "metrics.json").write_text(

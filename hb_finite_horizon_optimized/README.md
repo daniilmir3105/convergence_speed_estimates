@@ -208,29 +208,29 @@ results/oracle_vs_polyak.png
 results/direct_models_vs_finite_labels.png
 ```
 
-Особенно важны поля:
+В `metrics.json` теперь остаются только пять итоговых `R²`:
 
 ```text
-metrics.oracle
-metrics.forward
-metrics.inverse_labels_vs_polyak
-metrics.final.alpha_vs_finite_label
-metrics.final.beta_vs_finite_label
-metrics.final.performance_vs_polyak
-metrics.final.performance_vs_finite_label
-metrics_by_kappa
+metrics.forward_model.validation_scaled_r2
+metrics.forward_model.near_optimum_scaled_r2
+metrics.forward_model.validation_raw_J300_r2
+metrics.final_models_vs_polyak.alpha_r2
+metrics.final_models_vs_polyak.beta_r2
 ```
 
 Интерпретация:
 
-- высокий oracle `R²` против Поляка означает, что ML теоретически может
-  восстановить похожие параметры при данном таргете;
-- низкий oracle `R²` при хорошем `J_300` означает настоящее расхождение
-  конечного и асимптотического критериев;
-- высокий `R²` финальных моделей относительно finite-horizon меток означает,
-  что прямая модель успешно воспроизводит решённую обратную задачу;
-- `performance_vs_polyak.model_better_fraction` напрямую показывает, как
-  часто итоговые ML-параметры лучше Поляка именно через 300 итераций.
+- `validation_scaled_r2` — качество первой модели на отдельной валидационной
+  выборке для обучающего таргета `sqrt(kappa) * J_300`;
+- `near_optimum_scaled_r2` — то же качество только на 20% лучших по истинному
+  `J_300` кандидатов внутри каждого валидационного `kappa`;
+- `validation_raw_J300_r2` — качество первой модели после возврата прогноза
+  в исходные единицы `J_300`;
+- `alpha_r2` и `beta_r2` — сходство итоговых параметров с формулами Поляка.
+
+Oracle, точное уточнение и оценка траекторий остаются внутри алгоритма и в
+диагностических CSV/графиках, но дополнительные диагностические метрики больше
+не записываются в `metrics.json`.
 
 ## Сохраняемые файлы
 

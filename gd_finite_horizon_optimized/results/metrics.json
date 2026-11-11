@@ -1,0 +1,66 @@
+{
+  "description": "Exact-refined finite-horizon Gradient Descent experiment",
+  "external_inputs": [
+    "L",
+    "l"
+  ],
+  "internal_direct_features": [
+    "log_L",
+    "log_l",
+    "log_kappa",
+    "sqrt_kappa"
+  ],
+  "forward_features": [
+    "kappa",
+    "log_kappa",
+    "sqrt_kappa",
+    "inv_sqrt_kappa",
+    "alpha_L",
+    "q"
+  ],
+  "saved_models": {
+    "forward": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd_finite_horizon_optimized\\models\\hist_gradient_boosting_finite_rate.joblib",
+    "alpha": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd_finite_horizon_optimized\\models\\gradient_boosting_alpha.joblib"
+  },
+  "target": {
+    "definition": "mean_i(log10(max(f_K/f_0, 1e-300))) / K",
+    "steps": 300,
+    "starts": 16,
+    "forward_training_target": "sqrt(kappa) * finite_horizon_target"
+  },
+  "theory_baseline": "alpha = 2 / (L + l)",
+  "theory_is_used_as_training_label": false,
+  "config": {
+    "kappa_min": 1.1,
+    "kappa_max": 20000.0,
+    "stability_safety": 0.99999,
+    "steps": 300,
+    "starts": 16,
+    "forward_groups": 2400,
+    "forward_candidates": 96,
+    "forward_iterations": 350,
+    "oracle_points": 512,
+    "oracle_grid": 256,
+    "oracle_refine": 65,
+    "oracle_stages": 3,
+    "meta_pairs": 10000,
+    "meta_estimators": 600,
+    "search_grid": 192,
+    "predicted_refine": 64,
+    "exact_top_k": 24,
+    "exact_refine": 41,
+    "exact_stages": 3,
+    "batch_size": 128,
+    "seed": 42
+  },
+  "metrics": {
+    "forward_model": {
+      "validation_scaled_r2": 0.9982058270696971,
+      "near_optimum_scaled_r2": 0.999429957322935,
+      "validation_raw_J300_r2": 0.9991920126554735
+    },
+    "final_model_vs_classical_gd_theory": {
+      "alpha_r2": 0.9985249143004291
+    }
+  }
+}
