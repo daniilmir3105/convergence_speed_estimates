@@ -19,8 +19,8 @@
     "q"
   ],
   "saved_models": {
-    "forward": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd_finite_horizon_optimized\\models\\hist_gradient_boosting_finite_rate.joblib",
-    "alpha": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd_finite_horizon_optimized\\models\\gradient_boosting_alpha.joblib"
+    "forward": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd\\models\\hist_gradient_boosting_finite_rate.joblib",
+    "alpha": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd\\models\\gradient_boosting_alpha.joblib"
   },
   "target": {
     "definition": "mean_i(log10(max(f_K/f_0, 1e-300))) / K",

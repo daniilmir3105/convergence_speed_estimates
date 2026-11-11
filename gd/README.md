@@ -1,8 +1,8 @@
 # Gradient Descent: оптимизированный finite-horizon эксперимент
 
-Эта папка воспроизводит логику `hb_finite_horizon_optimized`, но для обычного
-градиентного спуска без momentum. Исходные папки `gd` и
-`hb_finite_horizon_optimized` не изменяются.
+Здесь находится основной finite-horizon эксперимент для обычного градиентного
+спуска без momentum. Он использует ту же общую логику, что и эксперимент
+Heavy Ball из папки `hb`.
 
 Диапазон числа обусловленности:
 
@@ -117,11 +117,8 @@ q_{\mathrm{theory}}
 итоговая joblib-модель содержит класс из этого Python-пакета.
 
 ```powershell
-.\venv\Scripts\python.exe -m gd_finite_horizon_optimized.pipeline
+.\venv\Scripts\python.exe -m gd.pipeline
 ```
-
-Код при создании папки не запускался; результаты появятся только после этой
-команды.
 
 ## Быстрый пробный запуск
 
@@ -129,7 +126,7 @@ q_{\mathrm{theory}}
 Его метрики нельзя считать итоговыми из-за малого объёма данных.
 
 ```powershell
-.\venv\Scripts\python.exe -m gd_finite_horizon_optimized.pipeline `
+.\venv\Scripts\python.exe -m gd.pipeline `
   --forward-groups 200 `
   --forward-candidates 48 `
   --forward-iterations 100 `
@@ -152,7 +149,7 @@ q_{\mathrm{theory}}
 Например, для `L=1000` и `l=1`:
 
 ```powershell
-.\venv\Scripts\python.exe -m gd_finite_horizon_optimized.predict 1000 1
+.\venv\Scripts\python.exe -m gd.predict 1000 1
 ```
 
 Скрипт напечатает:
@@ -164,7 +161,7 @@ q_{\mathrm{theory}}
 Программный вызов:
 
 ```python
-from gd_finite_horizon_optimized.predict import predict
+from gd.predict import predict
 
 alpha = predict(L=1000.0, l=1.0)
 ```

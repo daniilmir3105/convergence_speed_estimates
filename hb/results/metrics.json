@@ -11,8 +11,8 @@
     "sqrt_kappa"
   ],
   "saved_models": {
-    "q": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb_finite_horizon_optimized\\models\\gradient_boosting_q.joblib",
-    "beta": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb_finite_horizon_optimized\\models\\gradient_boosting_beta.joblib"
+    "q": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb\\models\\gradient_boosting_q.joblib",
+    "beta": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb\\models\\gradient_boosting_beta.joblib"
   },
   "target": {
     "definition": "mean_i(log10(max(f_K/f_0, 1e-300))) / K",

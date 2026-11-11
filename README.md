@@ -1,102 +1,146 @@
-# ML-оценка оптимальных параметров алгоритмов оптимизации
+# ML-подбор параметров алгоритмов оптимизации
 
-Проект исследует, можно ли восстанавливать хорошие гиперпараметры алгоритмов
-оптимизации при помощи машинного обучения. Основные задачи — подбор шага
-градиентного спуска, совместный подбор шага и momentum для метода тяжёлого
-шарика, а также практический подбор learning rate нейронной сети.
+Проект исследует универсальный двухэтапный ML-подход к настройке параметров
+оптимизаторов. Основные синтетические эксперименты посвящены градиентному
+спуску и методу тяжёлого шарика на положительно определённых квадратичных
+функциях. Качество параметров оценивается на фиксированном горизонте из 300
+итераций, а не через спектральный или бесконечно-асимптотический таргет.
 
-Во всех актуальных ML-пайплайнах используется
-`sklearn.ensemble.GradientBoostingRegressor`. CatBoost и Gauss–Newton-матрица
-не используются.
+Практические эксперименты на Diabetes и Boston Housing показывают родственную
+идею: зависимость качества обучения нейросети от learning rate сначала
+измеряется серией запусков, а затем аппроксимируется градиентным бустингом.
 
 ## Состав проекта
 
-| Папка | Задача | Результат |
+| Папка | Эксперимент | Итоговый интерфейс |
 |---|---|---|
-| [`gd`](gd/) | Обратная задача для Gradient Descent | Модель `(L, l) -> alpha` |
-| [`hb`](hb/) | Обратная задача для Heavy Ball | Две модели `(L, l) -> alpha` и `(L, l) -> beta` |
-| [`diabetes_sgd_experiment`](diabetes_sgd_experiment/) | Эмпирический подбор learning rate для MLP на Diabetes | Модель `learning rate -> validation MSE` и сравнение с Grid Search/LR Finder |
-| [`boston_mlp_experiment`](boston_mlp_experiment/) | Подбор learning rate Adam для MLP на Boston Housing | Аналогичное сравнение surrogate, Grid Search и LR Finder после обработки пропусков и выбросов |
+| [`gd`](gd/) | Gradient Descent, finite horizon | `(L, l) -> alpha` |
+| [`hb`](hb/) | Heavy Ball, finite horizon | `(L, l) -> (alpha, beta)` |
+| [`diabetes_sgd_experiment`](diabetes_sgd_experiment/) | Подбор learning rate для PyTorch MLP с SGD | `learning rate -> validation MSE` |
+| [`boston_mlp_experiment`](boston_mlp_experiment/) | Подбор learning rate для sklearn MLP с Adam | `learning rate -> validation MSE` |
 
-Здесь `L` — максимальное, а `l` — минимальное собственное значение гессиана;
-`alpha` — шаг оптимизатора; `beta` — коэффициент momentum.
+Здесь `L` и `l` — максимальная и минимальная кривизны квадратичной задачи,
+`kappa=L/l` — число обусловленности, `alpha` — шаг, а `beta` — momentum.
 
-## Основная идея обратной задачи
+## Главный finite-horizon критерий
 
-Для GD и Heavy Ball используется двухэтапная схема:
+В папках `gd` и `hb` используется один и тот же фактический показатель
+сходимости:
 
-```text
-(параметры задачи + кандидат alpha/beta)
-                    ↓
-        моделирование сходимости
-                    ↓
-   GradientBoostingRegressor (forward-модель)
-                    ↓
-       минимизация её прогноза
-                    ↓
-     найденные оптимальные alpha/beta
-                    ↓
- финальная модель: только (L, l) → параметры
-```
+\[
+J_{300}=
+\frac{1}{16\cdot300}
+\sum_{i=1}^{16}
+\log_{10}\left[
+\max\left(
+\frac{f(x_{300}^{(i)})}{f(x_0^{(i)})},
+10^{-300}
+\right)
+\right].
+\]
 
-Forward-модель предсказывает асимптотическую скорость сходимости
+- рассматриваются 16 фиксированных начальных точек;
+- каждый кандидатный набор параметров проверяется на 300 итерациях;
+- чем меньше, то есть чем отрицательнее, `J_300`, тем быстрее уменьшалась
+  целевая функция;
+- порог `10^-300` защищает вычисление от `log10(0)`.
 
-```text
-target_rate = 2 · log10(rho),
-```
+Первая, или forward-модель, обучается предсказывать масштабированную версию:
 
-где `rho` — спектральный радиус итерационного отображения для худшего из
-крайних собственных значений `L` и `l`. Затем прогноз минимизируется по
-кандидатам `alpha` или `(alpha, beta)`. Для равномерной точности на диапазоне
-`L/l` от 1.1 до 20000 forward-модель GD обучается на `kappa * target_rate`, а
-Heavy Ball — на `sqrt(kappa) * target_rate`. Положительный множитель одинаков
-для всех кандидатов одной задачи, поэтому положение минимума не меняется.
-Подробный разбор `rho`, характеристических корней, всех множителей таргета и
-его отличия от finite-horizon критерия приведён в
-[`hb/README.md`](hb/README.md#как-устроен-таргет-forward-модели).
+\[
+y_{\mathrm{first}}=\sqrt{\kappa}\,J_{300}.
+\]
 
-## Математические ориентиры
+Множитель `sqrt(kappa)` улучшает различимость значений при больших числах
+обусловленности, но не меняет лучший параметр внутри одной задачи, поскольку
+для всех её кандидатов он одинаков и положителен.
 
-Для положительно определённой квадратичной функции
+## Общая логика GD и Heavy Ball
 
 ```text
-f(x) = 1/2 · xᵀHx,    0 < l ≤ λ(H) ≤ L
+kappa + кандидатные параметры
+              ↓
+точное вычисление J_300
+              ↓
+forward-модель: параметры -> sqrt(kappa) * J_300
+              ↓
+ML-ранжирование кандидатных параметров
+              ↓
+точная повторная оценка и локальное уточнение по J_300
+              ↓
+finite-horizon метки оптимальных параметров
+              ↓
+финальная модель: (L, l) -> параметры оптимизатора
 ```
 
-теоретически оптимальный постоянный шаг Gradient Descent равен
+Для контроля дополнительно выполняется exact oracle: прямой поиск минимума
+настоящего `J_300` без forward-модели. В Heavy Ball точка Поляка добавляется в
+набор проверяемых кандидатов, но побеждает только в том случае, если её
+фактический `J_300` не хуже альтернатив. Теоретические формулы не копируются в
+датасет как готовые обучающие метки.
+
+Диапазон обоих синтетических экспериментов:
+
+\[
+1.1\leq\kappa\leq20000,
+\qquad 1\leq l\leq50.
+\]
+
+## Теоретические ориентиры
+
+Для Gradient Descent используется классический оптимальный постоянный шаг:
+
+\[
+\alpha_{\mathrm{GD}}^*=\frac{2}{L+l}.
+\]
+
+Для метода тяжёлого шарика используются параметры Поляка:
+
+\[
+\alpha_{\mathrm P}^*=
+\frac{4}{(\sqrt L+\sqrt l)^2},
+\qquad
+\beta_{\mathrm P}^*=
+\left(\frac{\sqrt L-\sqrt l}{\sqrt L+\sqrt l}\right)^2.
+\]
+
+Эти значения нужны только для независимого итогового сравнения. Метки второй
+модели получаются минимизацией finite-horizon критерия `J_300`.
+
+## Какие метрики сохраняются
+
+Вывод синтетических пайплайнов намеренно сокращён до ключевых `R²`.
+
+Первая модель в обоих экспериментах:
 
 ```text
-alpha* = 2 / (L + l).
+metrics.forward_model.validation_scaled_r2
+metrics.forward_model.near_optimum_scaled_r2
+metrics.forward_model.validation_raw_J300_r2
 ```
 
-Для метода тяжёлого шарика Поляка
+- `validation_scaled_r2` — прогноз `sqrt(kappa) * J_300` на отдельных
+  валидационных значениях `kappa`;
+- `near_optimum_scaled_r2` — качество на 20% лучших по настоящему `J_300`
+  кандидатов внутри каждого валидационного `kappa`;
+- `validation_raw_J300_r2` — качество после возврата к исходным единицам
+  `J_300`.
+
+Итоговые модели:
 
 ```text
-x[k+1] = x[k] - alpha · grad(f(x[k])) + beta · (x[k] - x[k-1])
+GD: metrics.final_model_vs_classical_gd_theory.alpha_r2
+HB: metrics.final_models_vs_polyak.alpha_r2
+HB: metrics.final_models_vs_polyak.beta_r2
 ```
 
-теоретические параметры имеют вид
-
-```text
-alpha* = 4 / (sqrt(L) + sqrt(l))²,
-beta*  = ((sqrt(L) - sqrt(l)) / (sqrt(L) + sqrt(l)))².
-```
-
-Эти формулы не передаются финальным моделям как целевые значения напрямую:
-они используются как независимый ориентир для оценки решения обратной задачи.
+Oracle, точное уточнение и дополнительные значения траекторий остаются в CSV
+и графиках, но дополнительные диагностические метрики в `metrics.json` не
+записываются.
 
 ## Установка
 
-Проект протестирован на Windows с Python 3.14.4 и следующими версиями:
-
-- NumPy 2.4.6;
-- pandas 3.0.3;
-- scikit-learn 1.9.0;
-- Matplotlib 3.11.0;
-- joblib 1.5.3;
-- PyTorch 2.14.0 CPU.
-
-Создание нового окружения:
+Пример для Windows PowerShell:
 
 ```powershell
 python -m venv venv
@@ -104,268 +148,105 @@ python -m venv venv
 python -m pip install numpy pandas scikit-learn matplotlib joblib torch
 ```
 
-Все последующие команды выполняются из корня проекта.
+Все команды ниже выполняются из корня проекта.
 
-## Быстрый старт с готовыми моделями
+## Обучение синтетических пайплайнов
 
-Предсказать шаг Gradient Descent для `L=40`, `l=10`:
-
-```powershell
-.\venv\Scripts\python.exe gd\predict.py 40 10
-```
-
-Скрипт выводит ML-прогноз, теоретическое значение `2/(L+l)` и абсолютную
-ошибку.
-
-Предсказать `alpha` и `beta` метода Heavy Ball:
+Gradient Descent:
 
 ```powershell
-.\venv\Scripts\python.exe hb\predict.py 40 10
+.\venv\Scripts\python.exe -m gd.pipeline
 ```
 
-Скрипт также показывает параметры Поляка и абсолютные ошибки. Если `L` и `l`
-переданы в обратном порядке, оба скрипта автоматически их переставляют.
-
-Программное использование:
-
-```python
-from gd.predict import predict as predict_gd
-from hb.predict import predict as predict_hb
-
-alpha_gd = predict_gd(L=40, l=10)
-alpha_hb, beta_hb = predict_hb(L=40, l=10)
-```
-
-## Полное воспроизведение экспериментов
-
-Для обучения на новом диапазоне подготовлены PowerShell-лаунчеры:
-
-```powershell
-.\train_gd.cmd       # только Gradient Descent
-.\train_hb.cmd       # только Heavy Ball
-.\train_all.cmd      # оба пайплайна последовательно
-```
-
-Быстрая проверка с уменьшенными наборами данных:
-
-```powershell
-.\train_all.cmd -Quick
-```
-
-Режим `-Quick` сохраняет файлы в те же каталоги и поэтому заменяет полные
-модели быстрыми тестовыми. После проверки запустите полный режим повторно.
-
-Другой seed можно передать как `-Seed 123`. Файлы `.cmd` сами обходят запрет
-на запуск локальных PowerShell-скриптов. Прямой вызов `.ps1` выглядит так:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\train_all.ps1
-```
-
-### Gradient Descent
-
-```powershell
-.\venv\Scripts\python.exe gd\pipeline.py
-```
-
-Пайплайн:
-
-1. генерирует квадратичные задачи и кандидаты шага;
-2. обучает forward-модель скорости сходимости;
-3. решает обратную задачу поиском минимума прогноза;
-4. обучает итоговую модель `(L, l) -> alpha`;
-5. сохраняет данные, модели, метрики и график.
-
-Основные параметры можно посмотреть командой:
-
-```powershell
-.\venv\Scripts\python.exe gd\pipeline.py --help
-```
-
-### Heavy Ball
+Heavy Ball:
 
 ```powershell
 .\venv\Scripts\python.exe hb\pipeline.py
 ```
 
-Здесь обратный поиск выполняется совместно по `alpha` и `beta`, после чего для
-них обучаются две отдельные финальные модели. Подробное объяснение постановки
-находится в [`hb/inverse_problem_idea.txt`](hb/inverse_problem_idea.txt).
+Полные варианты быстрых проверочных команд и описание аргументов находятся в
+локальных инструкциях: [`gd/README.md`](gd/README.md) и
+[`hb/README.md`](hb/README.md).
 
-Все параметры запуска:
+## Использование готовых моделей
+
+Gradient Descent для `L=1000`, `l=10`:
 
 ```powershell
-.\venv\Scripts\python.exe hb\pipeline.py --help
+.\venv\Scripts\python.exe -m gd.predict 1000 10
 ```
 
-### Практический эксперимент Diabetes
+Heavy Ball для тех же кривизн:
+
+```powershell
+.\venv\Scripts\python.exe hb\predict.py 1000 10
+```
+
+С точки зрения пользователя модели получают только `L` и `l`. Внутренние
+признаки, такие как `log(kappa)` и `sqrt(kappa)`, вычисляются автоматически.
+В Heavy Ball внутренние модели сначала предсказывают устойчивые координаты
+`q` и `beta`, после чего восстанавливается обычный шаг `alpha`.
+
+## Практические эксперименты
+
+Diabetes, PyTorch MLP `10 -> 16 -> 16 -> 1`, ReLU, SGD без momentum:
 
 ```powershell
 .\venv\Scripts\python.exe diabetes_sgd_experiment\experiment.py
 ```
 
-В этом эксперименте кривизна и модели из `gd` не используются. Фиксируется MLP
-`10 -> 16 -> 16 -> 1` с ReLU, MSE и full-batch SGD без momentum. Для разных
-постоянных learning rate сеть запускается из одной и той же инициализации.
-
-Целевая переменная surrogate-модели — validation MSE после фиксированных 300
-эпох, а единственный исходный признак — learning rate, представленный как
-`log10(learning rate)`. Найденный минимум сравнивается с независимыми Grid
-Search и Learning Rate Finder. Test-набор используется только в финальном
-сравнении.
-
-Быстрый проверочный запуск:
+Boston Housing, sklearn MLP со скрытыми слоями `(32, 32)`, ReLU и Adam:
 
 ```powershell
-.\venv\Scripts\python.exe diabetes_sgd_experiment\experiment.py `
-  --surrogate-runs 16 `
-  --grid-candidates 17 `
-  --selection-epochs 100 `
-  --compare-epochs 200
+.\venv\Scripts\python.exe boston_mlp_experiment\experiment.py
 ```
 
-### Практический эксперимент Boston Housing
+В этих экспериментах forward-модель прогнозирует validation MSE по learning
+rate. Найденное значение сравнивается с независимыми Grid Search и Learning
+Rate Finder. Подробности находятся в README соответствующих папок.
 
-```powershell
-.\train_boston.cmd
-```
-
-Эксперимент использует 506 наблюдений Boston Housing и фиксированную sklearn MLP
-`13 -> 32 -> 32 -> 1`: два скрытых слоя по 32 нейрона, ReLU, MSE и Adam с
-постоянным базовым learning rate. Данные делятся на train/validation/test до
-предобработки. Медианная импутация, winsorization по квантилям 1%/99% и
-стандартизация обучаются только на train. Исходный датасет не содержит пропусков,
-но пайплайн корректно обработает их при повторном использовании.
-
-Локальная копия OpenML уже сохранена, поэтому обычный запуск не требует сети.
-Быстрая проверка доступна командой `.\train_boston.cmd -Quick`; она
-перезаписывает полные результаты сокращёнными.
-
-## Текущие результаты
-
-Результаты ниже получены с `seed=42` и стандартными параметрами скриптов.
-
-### Синтетические обратные задачи
-
-| Модель | R² относительно теории | Корреляция | MAE |
-|---|---:|---:|---:|
-| GD: итоговая `alpha` | 0.9953 | 0.9981 | 0.000268 |
-| Heavy Ball: итоговая `alpha` | 0.9979 | 0.9992 | 0.000293 |
-| Heavy Ball: итоговая `beta` | 0.9901 | 0.9984 | 0.027214 |
-
-Полные метрики: [`gd/results/metrics.json`](gd/results/metrics.json) и
-[`hb/results/metrics.json`](hb/results/metrics.json).
-
-### Diabetes
-
-Качество surrogate-модели на обучающих запусках:
+## Основные артефакты GD и Heavy Ball
 
 ```text
-train R² = 0.9991
-5-fold OOF R² = 0.9706
-```
-
-| Метод | Learning rate | Test R² | Test RMSE в исходной шкале |
-|---|---:|---:|---:|
-| Gradient Boosting surrogate | 0.019589 | 0.4673 | 54.999 |
-| Grid Search | 0.017550 | 0.4626 | 55.240 |
-| Learning Rate Finder | 0.019290 | 0.4664 | 55.043 |
-
-Все три метода выбрали близкую область learning rate. Полный результат находится
-в [`diabetes_sgd_experiment/results/metrics.json`](diabetes_sgd_experiment/results/metrics.json),
-а графики — в
-[`diabetes_sgd_experiment/results/comparison.png`](diabetes_sgd_experiment/results/comparison.png).
-
-### Boston Housing
-
-Качество surrogate-модели: train `R²=0.9997`, 5-fold OOF `R²=0.9701`.
-
-| Метод | Learning rate | Validation R² | Test R² | Test RMSE в исходной шкале |
-|---|---:|---:|---:|---:|
-| Gradient Boosting surrogate | 0.008271 | 0.9154 | 0.7744 | 4.2341 |
-| Grid Search | 0.000631 | 0.9017 | 0.7830 | 4.1528 |
-| Learning Rate Finder | 0.001440 | 0.8987 | 0.8009 | 3.9782 |
-
-Подробные метрики и графики сохранены в
-[`boston_mlp_experiment/results/metrics.json`](boston_mlp_experiment/results/metrics.json)
-и [`boston_mlp_experiment/results/comparison.png`](boston_mlp_experiment/results/comparison.png).
-
-Время полного запуска на текущей CPU-машине составляет примерно 2 минуты для
-`gd`, 3 минуты для `hb`, 40 секунд для Diabetes и 40 секунд для Boston. На другом
-оборудовании время может заметно отличаться.
-
-## Структура результатов
-
-```text
-train_gd.ps1 / train_gd.cmd             # полное или быстрое обучение GD
-train_hb.ps1 / train_hb.cmd             # полное или быстрое обучение HB
-train_all.ps1 / train_all.cmd            # последовательный запуск обоих
-train_boston.ps1 / train_boston.cmd      # полный или быстрый Boston-эксперимент
-
 gd/
-├── pipeline.py                         # обучение всего GD-пайплайна
-├── predict.py                          # применение готовой alpha-модели
-├── data/                               # forward и inverse выборки
-├── models/
-│   ├── gradient_boosting_terminal_rate.joblib
-│   └── gradient_boosting_alpha.joblib
-└── results/                            # JSON-метрики и график
-
-hb/
-├── pipeline.py                         # обучение Heavy Ball-пайплайна
-├── predict.py                          # применение alpha/beta-моделей
-├── inverse_problem_idea.txt            # подробная идея обратной задачи
+├── pipeline.py
+├── alpha_model.py
+├── predict.py
 ├── data/
 ├── models/
-│   ├── gradient_boosting_terminal_rate.joblib
-│   ├── gradient_boosting_alpha.joblib
+│   ├── hist_gradient_boosting_finite_rate.joblib
+│   └── gradient_boosting_alpha.joblib
+└── results/
+    ├── metrics.json
+    ├── oracle_vs_theory.png
+    └── alpha_model_vs_finite_labels.png
+
+hb/
+├── pipeline.py
+├── predict.py
+├── data/
+├── models/
+│   ├── hist_gradient_boosting_finite_rate.joblib
+│   ├── gradient_boosting_q.joblib
 │   └── gradient_boosting_beta.joblib
 └── results/
-
-diabetes_sgd_experiment/
-├── experiment.py
-├── models/
-│   ├── gradient_boosting_lr_surrogate.joblib
-│   ├── surrogate_model.pt
-│   ├── grid_search_model.pt
-│   └── lr_finder_model.pt
-└── results/
-    ├── surrogate_training_data.csv
-    ├── surrogate_prediction_curve.csv
-    ├── grid_search.csv
-    ├── lr_finder.csv
-    ├── learning_curves.csv
     ├── metrics.json
-    └── comparison.png
-
-boston_mlp_experiment/
-├── experiment.py                       # полный sklearn MLP/Adam-пайплайн
-├── data/boston_openml_531.csv          # локальные 506 наблюдений
-├── models/                             # preprocessing, surrogate и три MLP
-└── results/                            # выборки поиска, метрики и графики
+    ├── oracle_vs_polyak.png
+    └── direct_models_vs_finite_labels.png
 ```
 
-Файлы `.joblib` содержат sklearn-модели, а `.pt` — веса итоговых PyTorch MLP.
-Загружать сериализованные модели следует только из доверенного источника и с
-совместимой версией библиотек.
+Повторный запуск перезаписывает соответствующие данные, модели и результаты.
+Быстрый режим следует использовать только для проверки работоспособности:
+после него необходимо снова выполнить полный запуск перед анализом метрик.
 
-## Область применимости
+## Ограничения
 
-- Финальные модели `gd` и `hb` обучены для `l` от 1 до 50 и числа
-  обусловленности `L/l` от 1.1 до 20000. Значения `kappa` генерируются
-  равномерно по логарифмической шкале.
-- Качество вне этого диапазона не проверялось: деревья решений не обеспечивают
-  корректную экстраполяцию.
-- Теоретическое сравнение относится к положительно определённым квадратичным
-  функциям с постоянным гессианом.
-- Высокое качество forward-модели не гарантирует идеальное решение обратной
-  задачи: минимум чувствителен к локальным ошибкам аппроксимации.
-- Результаты Diabetes относятся к фиксированному разбиению данных, архитектуре,
-  инициализации, числу эпох и full-batch SGD. При изменении условий surrogate
-  нужно обучить заново.
-
-## Воспроизводимость
-
-По умолчанию все эксперименты используют `seed=42`. Сгенерированные датасеты,
-готовые модели и итоговые метрики уже находятся в репозитории. Повторный полный
-запуск перезаписывает соответствующие файлы в `data`, `models` и `results`.
+- Синтетические результаты относятся к двумерным положительно определённым
+  квадратичным функциям и фиксированному горизонту `K=300`.
+- Качество за пределами `1.1 <= kappa <= 20000` не проверялось.
+- Древесные модели не предназначены для надёжной экстраполяции за пределы
+  обучающего диапазона.
+- Высокий `R²` forward-модели не гарантирует точного положения минимума,
+  поэтому после ML-ранжирования применяется точная оценка `J_300`.
+- Сериализованные `.joblib` и `.pt` модели следует загружать только из
+  доверенного источника и с совместимыми версиями библиотек.
