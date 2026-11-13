@@ -517,7 +517,12 @@ def hybrid_inverse_search(
     safety,
     beta_max,
 ):
-    """Use ML for ranking, then determine labels with the exact J_K."""
+    """Determine finite-horizon labels without a Polyak candidate.
+
+    ML ranks global and local grids. Only those candidates, followed by exact
+    local refinements, participate in label construction. Polyak's formulas
+    are deliberately excluded and are used later only for comparison.
+    """
     kappa = np.asarray(kappa, dtype=np.float64)
     outputs = [np.empty(len(kappa), dtype=np.float64) for _ in range(4)]
     started = time.perf_counter()
@@ -557,17 +562,10 @@ def hybrid_inverse_search(
             exact_top_k - half_top,
         )
 
-        theory_alpha, theory_beta = theory_from_kappa(current_kappa)
-        theory_q = theory_alpha / (2.0 * (1.0 + theory_beta))
-        candidates_alpha = np.column_stack(
-            [coarse_top[0], refined_top[0], theory_alpha]
-        )
-        candidates_beta = np.column_stack(
-            [coarse_top[1], refined_top[1], theory_beta]
-        )
-        candidates_q = np.column_stack(
-            [coarse_top[2], refined_top[2], theory_q]
-        )
+        # Deliberately no Polyak/theoretical point in the label candidates.
+        candidates_alpha = np.column_stack([coarse_top[0], refined_top[0]])
+        candidates_beta = np.column_stack([coarse_top[1], refined_top[1]])
+        candidates_q = np.column_stack([coarse_top[2], refined_top[2]])
         exact = exact_scores(
             current_kappa, candidates_alpha, candidates_beta, starts, steps
         )
@@ -606,7 +604,7 @@ def hybrid_inverse_search(
         elapsed = time.perf_counter() - started
         rate = end / max(elapsed, 1e-12)
         eta = (len(kappa) - end) / max(rate, 1e-12)
-        print(f"  inverse {end:5d}/{len(kappa)} | ETA {eta:6.1f}s")
+        print(f"  theory-blind inverse {end:5d}/{len(kappa)} | ETA {eta:6.1f}s")
 
     return tuple(outputs)
 
@@ -911,6 +909,12 @@ def main(argv=None):
             "steps": args.steps,
             "starts": args.starts,
             "forward_training_target": "sqrt(kappa) * finite_horizon_target",
+        },
+        "inverse_label_search": {
+            "polyak_candidate_included": False,
+            "polyak_used_in_inverse_label_candidates": False,
+            "selection_criterion": "exact finite-horizon J_300",
+            "polyak_reference_computed_separately": True,
         },
         "config": vars(args),
         "metrics": {

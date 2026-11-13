@@ -20,6 +20,12 @@
     "starts": 16,
     "forward_training_target": "sqrt(kappa) * finite_horizon_target"
   },
+  "inverse_label_search": {
+    "polyak_candidate_included": false,
+    "polyak_used_in_inverse_label_candidates": false,
+    "selection_criterion": "exact finite-horizon J_300",
+    "polyak_reference_computed_separately": true
+  },
   "config": {
     "kappa_min": 1.1,
     "kappa_max": 20000.0,
@@ -51,8 +57,8 @@
       "validation_raw_J300_r2": 0.9952680960091731
     },
     "final_models_vs_polyak": {
-      "alpha_r2": 0.9952624924805645,
-      "beta_r2": 0.9986334227440563
+      "alpha_r2": 0.9952753991572315,
+      "beta_r2": 0.9986355761640646
     }
   }
 }

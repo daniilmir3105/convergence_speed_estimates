@@ -15,7 +15,9 @@
 | Папка | Эксперимент | Итоговый интерфейс |
 |---|---|---|
 | [`gd`](gd/) | Gradient Descent, finite horizon | `(L, l) -> alpha` |
+| [`gd_eikg`](gd_eikg/) | Тот же GD-эксперимент с `EIKGPolynomialRegressor` | `(L, l) -> alpha` |
 | [`hb`](hb/) | Heavy Ball, finite horizon | `(L, l) -> (alpha, beta)` |
+| [`hb_eikg`](hb_eikg/) | Тот же HB-эксперимент с `EIKGPolynomialRegressor` | `(L, l) -> (alpha, beta)` |
 | [`diabetes_sgd_experiment`](diabetes_sgd_experiment/) | Подбор learning rate для PyTorch MLP с SGD | `learning rate -> validation MSE` |
 | [`boston_mlp_experiment`](boston_mlp_experiment/) | Подбор learning rate для sklearn MLP с Adam | `learning rate -> validation MSE` |
 
@@ -74,10 +76,10 @@ finite-horizon метки оптимальных параметров
 ```
 
 Для контроля дополнительно выполняется exact oracle: прямой поиск минимума
-настоящего `J_300` без forward-модели. В Heavy Ball точка Поляка добавляется в
-набор проверяемых кандидатов, но побеждает только в том случае, если её
-фактический `J_300` не хуже альтернатив. Теоретические формулы не копируются в
-датасет как готовые обучающие метки.
+настоящего `J_300` без forward-модели. Диагностический Heavy Ball oracle
+проверяет в том числе точку Поляка, но при создании обучающих finite-horizon
+меток она не добавляется в кандидаты. Теоретические параметры вычисляются
+отдельно и используются для итогового сравнения.
 
 Диапазон обоих синтетических экспериментов:
 
@@ -158,15 +160,30 @@ Gradient Descent:
 .\venv\Scripts\python.exe -m gd.pipeline
 ```
 
+Вариант Gradient Descent с ЭОПКГ:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r gd_eikg\requirements.txt
+.\venv\Scripts\python.exe -m gd_eikg.pipeline
+```
+
 Heavy Ball:
 
 ```powershell
 .\venv\Scripts\python.exe hb\pipeline.py
 ```
 
+Вариант Heavy Ball с ЭОПКГ:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r hb_eikg\requirements.txt
+.\venv\Scripts\python.exe -m hb_eikg.pipeline
+```
+
 Полные варианты быстрых проверочных команд и описание аргументов находятся в
-локальных инструкциях: [`gd/README.md`](gd/README.md) и
-[`hb/README.md`](hb/README.md).
+локальных инструкциях: [`gd/README.md`](gd/README.md),
+[`gd_eikg/README.md`](gd_eikg/README.md), [`hb/README.md`](hb/README.md) и
+[`hb_eikg/README.md`](hb_eikg/README.md).
 
 ## Использование готовых моделей
 

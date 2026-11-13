@@ -1,0 +1,137 @@
+{
+  "description": "Finite-horizon GD experiment with EIKG models",
+  "external_inputs": [
+    "L",
+    "l"
+  ],
+  "forward_features": [
+    "kappa",
+    "log_kappa",
+    "sqrt_kappa",
+    "inv_sqrt_kappa",
+    "alpha_L",
+    "q"
+  ],
+  "internal_final_features": [
+    "log_L",
+    "log_l",
+    "log_kappa",
+    "sqrt_kappa"
+  ],
+  "target": {
+    "definition": "mean_i(log10(max(f_300/f_0, 1e-300))) / 300",
+    "forward_training_target": "sqrt(kappa) * J_300",
+    "steps": 300,
+    "starts": 16
+  },
+  "data_split": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "degree_selection_criterion": "minimum validation MSE",
+    "reported_metrics_partition": "test only"
+  },
+  "model_selection": {
+    "forward": {
+      "candidate_degrees": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "selected_degree": 10,
+      "best_validation_mse": 0.07051649868361154
+    },
+    "final_q": {
+      "candidate_degrees": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "selected_degree": 10,
+      "best_validation_mse": 0.014727172075157075
+    }
+  },
+  "eikg_parameters": {
+    "regularization": "ridge",
+    "alpha_ridge": 1e-05,
+    "scale": true,
+    "scale_y": true,
+    "normalize_latent": true,
+    "forward_integer_weights_repeated": true
+  },
+  "saved_models": {
+    "forward": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd_eikg\\models\\eikg_forward.joblib",
+    "alpha": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\gd_eikg\\models\\eikg_alpha.joblib"
+  },
+  "config": {
+    "kappa_min": 1.1,
+    "kappa_max": 20000.0,
+    "stability_safety": 0.99999,
+    "steps": 300,
+    "starts": 16,
+    "forward_groups": 2400,
+    "forward_candidates": 96,
+    "forward_degrees": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "final_degrees": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "alpha_ridge": 1e-05,
+    "disable_forward_weight_repetition": false,
+    "oracle_points": 512,
+    "oracle_grid": 256,
+    "oracle_refine": 65,
+    "oracle_stages": 3,
+    "meta_pairs": 10000,
+    "search_grid": 192,
+    "predicted_refine": 64,
+    "exact_top_k": 24,
+    "exact_refine": 41,
+    "exact_stages": 3,
+    "batch_size": 128,
+    "seed": 42
+  },
+  "metrics": {
+    "forward_model_test": {
+      "test_scaled_r2": 0.5985701689066063,
+      "test_near_optimum_scaled_r2": 0.2715819247914598,
+      "test_raw_J300_r2": 0.5059748819352604
+    },
+    "final_model_test": {
+      "test_alpha_vs_classical_theory_r2": 0.8484619998423517
+    }
+  }
+}

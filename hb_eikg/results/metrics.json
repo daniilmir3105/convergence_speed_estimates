@@ -1,0 +1,176 @@
+{
+  "description": "Finite-horizon Heavy Ball experiment with EIKG models",
+  "external_inputs": [
+    "L",
+    "l"
+  ],
+  "forward_features": [
+    "kappa",
+    "log_kappa",
+    "sqrt_kappa",
+    "inv_sqrt_kappa",
+    "alpha_L",
+    "beta",
+    "q"
+  ],
+  "internal_final_features": [
+    "log_L",
+    "log_l",
+    "log_kappa",
+    "sqrt_kappa"
+  ],
+  "target": {
+    "definition": "mean_i(log10(max(f_300/f_0, 1e-300))) / 300",
+    "forward_training_target": "sqrt(kappa) * J_300",
+    "steps": 300,
+    "starts": 16
+  },
+  "inverse_label_search": {
+    "polyak_candidate_included": false,
+    "selection_criterion": "exact finite-horizon J_300",
+    "polyak_used_in_inverse_label_candidates": false,
+    "polyak_reference_computed_separately": true
+  },
+  "data_split": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "degree_selection_criterion": "minimum validation MSE",
+    "reported_metrics_partition": "test only"
+  },
+  "model_selection": {
+    "forward": {
+      "candidate_degrees": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "selected_degree": 8,
+      "best_validation_mse": 0.33258855551944155
+    },
+    "final_q": {
+      "candidate_degrees": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "selected_degree": 10,
+      "best_validation_mse": 0.000827599019667009
+    },
+    "final_beta": {
+      "candidate_degrees": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "selected_degree": 10,
+      "best_validation_mse": 0.0011407140314544362
+    }
+  },
+  "eikg_parameters": {
+    "regularization": "ridge",
+    "alpha_ridge": 1e-05,
+    "scale": true,
+    "scale_y": true,
+    "normalize_latent": true,
+    "forward_integer_weights_repeated": true
+  },
+  "saved_models": {
+    "forward": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb_eikg\\models\\eikg_forward.joblib",
+    "q": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb_eikg\\models\\eikg_q.joblib",
+    "beta": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb_eikg\\models\\eikg_beta.joblib",
+    "public_parameters": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hb_eikg\\models\\eikg_heavy_ball.joblib"
+  },
+  "config": {
+    "kappa_min": 1.1,
+    "kappa_max": 20000.0,
+    "stability_safety": 0.99999,
+    "beta_max": 0.99,
+    "steps": 300,
+    "starts": 16,
+    "forward_groups": 2400,
+    "forward_candidates": 96,
+    "forward_degrees": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "q_degrees": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "beta_degrees": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "alpha_ridge": 1e-05,
+    "disable_forward_weight_repetition": false,
+    "oracle_points": 256,
+    "oracle_grid": 64,
+    "oracle_refine": 25,
+    "oracle_stages": 2,
+    "meta_pairs": 10000,
+    "search_grid": 64,
+    "predicted_refine": 32,
+    "exact_top_k": 24,
+    "exact_refine": 17,
+    "exact_stages": 2,
+    "batch_size": 64,
+    "seed": 42
+  },
+  "metrics": {
+    "forward_model_test": {
+      "test_scaled_r2": 0.2706008922388753,
+      "test_near_optimum_scaled_r2": -7.537986073441182,
+      "test_raw_J300_r2": 0.6666968246134264
+    },
+    "final_models_test": {
+      "test_alpha_vs_polyak_r2": 0.8126338319265802,
+      "test_beta_vs_polyak_r2": 0.9159628860727939
+    }
+  }
+}
