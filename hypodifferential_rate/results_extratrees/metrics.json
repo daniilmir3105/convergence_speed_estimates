@@ -1,0 +1,58 @@
+{
+  "description": "Extra Trees finite-horizon rate model for hypodifferential descent",
+  "estimator": "ExtraTreesRegressor",
+  "target": "J300",
+  "data_split": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "selection_metric": "validation MSE on J300",
+    "reported_metrics_partition": "test only"
+  },
+  "model_selection": {
+    "candidate_count": 8,
+    "best_config": {
+      "n_estimators": 800,
+      "min_samples_leaf": 2,
+      "max_features": 1.0,
+      "max_depth": null
+    },
+    "best_validation_mse": 6.210371095837778e-05
+  },
+  "test_metrics": {
+    "J300": {
+      "r2": 0.766295636575298,
+      "mae": 0.0031513329442496847,
+      "mse": 3.329043040385401e-05,
+      "rmse": 0.005769785992899045
+    },
+    "rho": {
+      "r2": 0.7501784966970446,
+      "mae": 0.006334247844039854,
+      "mse": 0.00013863908075853172,
+      "rmse": 0.011774509788459633
+    }
+  },
+  "feature_names": [
+    "dimension",
+    "n_pieces",
+    "log_l",
+    "log_L",
+    "log_kappa",
+    "sqrt_kappa",
+    "trace_over_L_mean",
+    "trace_over_L_std",
+    "frobenius_over_L_mean",
+    "frobenius_over_L_std",
+    "pairwise_distance_mean",
+    "pairwise_distance_max",
+    "commutator_mean",
+    "commutator_max",
+    "active_piece_fraction",
+    "active_entropy",
+    "dominant_active_share",
+    "active_margin_mean"
+  ],
+  "saved_model": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hypodifferential_rate\\models_extratrees\\extra_trees_J300.joblib",
+  "seed": 42
+}

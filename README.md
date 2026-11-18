@@ -18,6 +18,7 @@
 | [`gd_eikg`](gd_eikg/) | Тот же GD-эксперимент с `EIKGPolynomialRegressor` | `(L, l) -> alpha` |
 | [`hb`](hb/) | Heavy Ball, finite horizon | `(L, l) -> (alpha, beta)` |
 | [`hb_eikg`](hb_eikg/) | Тот же HB-эксперимент с `EIKGPolynomialRegressor` | `(L, l) -> (alpha, beta)` |
+| [`hypodifferential_rate`](hypodifferential_rate/) | Прогноз `J_300` гиподифференциального спуска | `max` квадратичных форм `-> (J_300, rho)` |
 | [`diabetes_sgd_experiment`](diabetes_sgd_experiment/) | Подбор learning rate для PyTorch MLP с SGD | `learning rate -> validation MSE` |
 | [`boston_mlp_experiment`](boston_mlp_experiment/) | Подбор learning rate для sklearn MLP с Adam | `learning rate -> validation MSE` |
 
@@ -180,10 +181,19 @@ Heavy Ball:
 .\venv\Scripts\python.exe -m hb_eikg.pipeline
 ```
 
+Оценка скорости гиподифференциального спуска:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r hypodifferential_rate\requirements.txt
+.\venv\Scripts\python.exe -m hypodifferential_rate.generate_dataset
+.\venv\Scripts\python.exe -m hypodifferential_rate.train
+```
+
 Полные варианты быстрых проверочных команд и описание аргументов находятся в
 локальных инструкциях: [`gd/README.md`](gd/README.md),
 [`gd_eikg/README.md`](gd_eikg/README.md), [`hb/README.md`](hb/README.md) и
-[`hb_eikg/README.md`](hb_eikg/README.md).
+[`hb_eikg/README.md`](hb_eikg/README.md). Описание эксперимента с негладким
+методом находится в [`hypodifferential_rate/README.md`](hypodifferential_rate/README.md).
 
 ## Использование готовых моделей
 

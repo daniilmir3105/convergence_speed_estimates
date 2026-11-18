@@ -1,0 +1,64 @@
+{
+  "description": "Learned finite-horizon rate of hypodifferential descent",
+  "external_input": "matrices A_j of f(x)=max_j 0.5*x^T*A_j*x",
+  "output": [
+    "J300",
+    "rho=10**J300"
+  ],
+  "data_split": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "model_selection_metric": "validation MSE on J300",
+    "reported_metrics_partition": "test only"
+  },
+  "model_selection": {
+    "best_config": {
+      "n_estimators": 500,
+      "learning_rate": 0.03,
+      "max_depth": 2
+    },
+    "best_validation_mse": 7.775389465618397e-05
+  },
+  "test_metrics": {
+    "J300": {
+      "r2": 0.6654950016024435,
+      "mae": 0.0032557534081396077,
+      "mse": 4.7649154708585655e-05,
+      "rmse": 0.0069028367146112945
+    },
+    "rho": {
+      "r2": 0.6474850615325043,
+      "mae": 0.006529369957150629,
+      "mse": 0.0001956290646586859,
+      "rmse": 0.013986746035396722
+    }
+  },
+  "linearity_diagnostics_on_test": {
+    "tail_linearity_r2_mean": 0.9521916149065831,
+    "tail_linearity_r2_median": 0.9788928496623754,
+    "fraction_tail_r2_at_least_0_95": 0.69
+  },
+  "feature_names": [
+    "dimension",
+    "n_pieces",
+    "log_l",
+    "log_L",
+    "log_kappa",
+    "sqrt_kappa",
+    "trace_over_L_mean",
+    "trace_over_L_std",
+    "frobenius_over_L_mean",
+    "frobenius_over_L_std",
+    "pairwise_distance_mean",
+    "pairwise_distance_max",
+    "commutator_mean",
+    "commutator_max",
+    "active_piece_fraction",
+    "active_entropy",
+    "dominant_active_share",
+    "active_margin_mean"
+  ],
+  "saved_model": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hypodifferential_rate\\models\\gradient_boosting_J300.joblib",
+  "seed": 42
+}

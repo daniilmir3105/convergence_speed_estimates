@@ -1,0 +1,68 @@
+{
+  "description": "EIKG finite-horizon rate model for hypodifferential descent",
+  "estimator": "EIKGPolynomialRegressor",
+  "package": "eikgpolynomial",
+  "target": "J300",
+  "data_split": {
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "selection_metric": "validation MSE on J300",
+    "reported_metrics_partition": "test only"
+  },
+  "degree_selection": {
+    "candidate_degrees": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "selected_degree": 5,
+    "best_validation_mse": 0.00012240481894904728
+  },
+  "model_parameters": {
+    "regularization": "ridge",
+    "alpha_ridge": 1e-05,
+    "scale": true,
+    "scale_y": true,
+    "normalize_latent": true
+  },
+  "test_metrics": {
+    "J300": {
+      "r2": 0.45166612981324605,
+      "mae": 0.005566241342430904,
+      "mse": 7.81083856374357e-05,
+      "rmse": 0.008837894864583744
+    },
+    "rho": {
+      "r2": 0.4438477622984147,
+      "mae": 0.011105433867452387,
+      "mse": 0.00030863810351523113,
+      "rmse": 0.017568099029639808
+    }
+  },
+  "feature_names": [
+    "dimension",
+    "n_pieces",
+    "log_l",
+    "log_L",
+    "log_kappa",
+    "sqrt_kappa",
+    "trace_over_L_mean",
+    "trace_over_L_std",
+    "frobenius_over_L_mean",
+    "frobenius_over_L_std",
+    "pairwise_distance_mean",
+    "pairwise_distance_max",
+    "commutator_mean",
+    "commutator_max",
+    "active_piece_fraction",
+    "active_entropy",
+    "dominant_active_share",
+    "active_margin_mean"
+  ],
+  "saved_model": "C:\\Users\\RobotComp.ru\\Desktop\\projects\\convergence_speed_estimates\\hypodifferential_rate\\models_eikg\\eikg_J300.joblib",
+  "seed": 42
+}
