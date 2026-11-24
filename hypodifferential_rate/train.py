@@ -48,7 +48,7 @@ def build_parser():
 
 def make_model(config, seed):
     return GradientBoostingRegressor(
-        loss="huber",
+        loss="absolute_error",
         n_estimators=config["n_estimators"],
         learning_rate=config["learning_rate"],
         max_depth=config["max_depth"],
